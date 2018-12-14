@@ -14,19 +14,34 @@ import okhttp3.Response;
  * @author: yanzhiwen
  */
 public class OkHttpManager {
-    private static final OkHttpManager sOkHttpManager = new OkHttpManager();
-    private OkHttpClient okHttpClient;
 
-    private OkHttpManager() {
-        okHttpClient = new OkHttpClient();
+    private static OkHttpManager okHttpManager;
+    private final OkHttpClient okHttpClient;
+
+    private OkHttpManager(OkHttpClient okHttpClient) {
+        if (okHttpClient == null) {
+            this.okHttpClient = new OkHttpClient();
+        } else {
+            this.okHttpClient = okHttpClient;
+        }
     }
 
     public static OkHttpManager getInstance() {
-        return sOkHttpManager;
+        return getInstance(null);
+    }
+
+    public static OkHttpManager getInstance(OkHttpClient okHttpClient) {
+        if (okHttpManager == null) {
+            synchronized (OkHttpManager.class) {
+                if (okHttpManager == null) {
+                    okHttpManager = new OkHttpManager(okHttpClient);
+                }
+            }
+        }
+        return okHttpManager;
     }
 
     public Call asyncCall(String url) {
-
         Request request = new Request.Builder()
                 .url(url)
                 .build();

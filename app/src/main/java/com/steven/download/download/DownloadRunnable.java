@@ -1,6 +1,5 @@
 package com.steven.download.download;
 
-import android.os.Environment;
 import android.util.Log;
 
 import com.steven.download.okhttp.OkHttpManager;
@@ -23,25 +22,46 @@ public class DownloadRunnable implements Runnable {
     private static final String TAG = "DownloadRunnable";
     private static final int STATUS_DOWNLOADING = 1;
     private static final int STATUS_STOP = 2;
-    //线程的状态
+    /**
+     * 线程的状态
+     */
     private int mStatus = STATUS_DOWNLOADING;
-    //文件下载的url
+    /**
+     * 文件下载的url
+     */
     private String url;
-    //文件的名称
+    /**
+     * 文件的名称
+     */
     private String name;
-    //线程id
+    /**
+     * 文件存储路径
+     */
+    private String folder;
+    /**
+     * 线程id
+     */
     private int threadId;
-    //每个线程下载开始的位置
+    /**
+     * 每个线程下载开始的位置
+     */
     private long start;
-    //每个线程下载结束的位置
+    /**
+     * 每个线程下载结束的位置
+     */
     private long end;
-    //每个线程的下载进度
+    /**
+     * 每个线程的下载进度
+     */
     private long mProgress;
-    //文件的总大小 content-length
+    /**
+     * 文件的总大小 content-length
+     */
     private long mCurrentLength;
     private DownloadCallback downloadCallback;
 
-    public DownloadRunnable(String name, String url, long currentLength, int threadId, long start, long end, DownloadCallback downloadCallback) {
+    public DownloadRunnable(String folder, String name, String url, long currentLength, int threadId, long start, long end, DownloadCallback downloadCallback) {
+        this.folder = folder;
         this.name = name;
         this.url = url;
         this.mCurrentLength = currentLength;
@@ -61,14 +81,16 @@ public class DownloadRunnable implements Runnable {
                     + " 开始位置start=" + start + "结束位置end=" + end + " threadId=" + threadId);
             inputStream = response.body().byteStream();
             //保存文件的路径
-            File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), name);
+            File file = new File(folder, name);
             randomAccessFile = new RandomAccessFile(file, "rwd");
             //seek从哪里开始
             randomAccessFile.seek(start);
             int length;
             byte[] bytes = new byte[10 * 1024];
+            boolean isSuccess = true;
             while ((length = inputStream.read(bytes)) != -1) {
                 if (mStatus == STATUS_STOP) {
+                    isSuccess = false;
                     downloadCallback.onPause(length, mCurrentLength);
                     break;
                 }
@@ -79,7 +101,9 @@ public class DownloadRunnable implements Runnable {
                 //实时去更新下进度条，将每次写入的length传出去
                 downloadCallback.onProgress(length, mCurrentLength);
             }
-            downloadCallback.onSuccess(file);
+            if (isSuccess) {
+                downloadCallback.onSuccess(file);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             downloadCallback.onFailure(e);

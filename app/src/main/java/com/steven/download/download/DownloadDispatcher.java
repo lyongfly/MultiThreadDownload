@@ -1,5 +1,6 @@
 package com.steven.download.download;
 
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * Description:
@@ -36,7 +38,6 @@ public class DownloadDispatcher {
     //private final Deque<DownloadTask> readyTasks = new ArrayDeque<>();
     private final Deque<DownloadTask> runningTasks = new ArrayDeque<>();
     //private final Deque<DownloadTask> stopTasks = new ArrayDeque<>();
-
 
     private DownloadDispatcher() {
     }
@@ -72,13 +73,22 @@ public class DownloadDispatcher {
         return mExecutorService;
     }
 
-
     /**
      * @param name     文件名
      * @param url      下载的地址
      * @param callBack 回调接口
      */
     public void startDownload(final String name, final String url, final DownloadCallback callBack) {
+        startDownload(Environment.getExternalStorageDirectory().getAbsolutePath(), name, url, callBack);
+    }
+
+    /**
+     * @param folder   文件夹
+     * @param name     文件名
+     * @param url      下载的地址
+     * @param callBack 回调接口
+     */
+    public void startDownload(final String folder, final String name, final String url, final DownloadCallback callBack) {
         Call call = OkHttpManager.getInstance().asyncCall(url);
         call.enqueue(new Callback() {
             @Override
@@ -89,12 +99,13 @@ public class DownloadDispatcher {
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
                 //获取文件的大小
-                long contentLength = response.body().contentLength();
+                ResponseBody responseBody = response.body();
+                long contentLength = responseBody == null ? -1 : responseBody.contentLength();
                 Log.i(TAG, "contentLength=" + contentLength);
                 if (contentLength <= -1) {
                     return;
                 }
-                DownloadTask downloadTask = new DownloadTask(name, url, THREAD_SIZE, contentLength, callBack);
+                DownloadTask downloadTask = new DownloadTask(folder, name, url, THREAD_SIZE, contentLength, callBack);
                 downloadTask.init();
                 runningTasks.add(downloadTask);
             }
@@ -123,6 +134,5 @@ public class DownloadDispatcher {
         //参考OkHttp的Dispatcher()的源码
         //readyTasks.
     }
-
 
 }

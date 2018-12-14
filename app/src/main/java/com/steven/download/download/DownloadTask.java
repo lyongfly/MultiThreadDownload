@@ -1,8 +1,11 @@
 package com.steven.download.download;
 
+import android.util.Log;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Description:每个apk的下载，这个类需要复用的
@@ -12,29 +15,49 @@ import java.util.List;
  */
 public class DownloadTask {
     private static final String TAG = "DownloadTask";
-    //文件下载的url
+    /**
+     * 文件下载的url
+     */
     private String url;
-    //文件的名称
+    /**
+     * 文件的名称
+     */
     private String name;
-    //文件的大小
+    /**
+     * 文件保存的文件夹
+     */
+    private String folder;
+    /**
+     * 文件的大小
+     */
     private long mContentLength;
-    //下载文件的线程的个数
+    /**
+     * 下载文件的线程的个数
+     */
     private int mThreadSize;
-    //线程下载成功的个数,变量加个volatile，多线程保证变量可见性
-    private volatile int mSuccessNumber;
-    //总进度=每个线程的进度的和
+    /**
+     * 线程下载成功的个数,变量加个volatile，多线程保证变量可见性以及原子性
+     */
+    private AtomicInteger mSuccessNumber;
+    /**
+     * 总进度=每个线程的进度的和
+     */
     private long mTotalProgress;
+    /**
+     * 下载的线程集合
+     */
     private List<DownloadRunnable> mDownloadRunnables;
     private DownloadCallback mDownloadCallback;
 
-
-    public DownloadTask(String name, String url, int threadSize, long contentLength, DownloadCallback callBack) {
+    public DownloadTask(String folder, String name, String url, int threadSize, long contentLength, DownloadCallback callBack) {
+        this.folder = folder;
         this.name = name;
         this.url = url;
         this.mThreadSize = threadSize;
         this.mContentLength = contentLength;
         this.mDownloadRunnables = new ArrayList<>();
         this.mDownloadCallback = callBack;
+        mSuccessNumber = new AtomicInteger(0);
     }
 
     public void init() {
@@ -49,7 +72,7 @@ public class DownloadTask {
             if (i == mThreadSize - 1) {
                 end = mContentLength - 1;
             }
-            DownloadRunnable downloadRunnable = new DownloadRunnable(name, url, mContentLength, i, start, end, new DownloadCallback() {
+            DownloadRunnable downloadRunnable = new DownloadRunnable(folder, name, url, mContentLength, i, start, end, new DownloadCallback() {
                 @Override
                 public void onFailure(Exception e) {
                     //有一个线程发生异常，下载失败，需要把其它线程停止掉
@@ -59,8 +82,9 @@ public class DownloadTask {
 
                 @Override
                 public void onSuccess(File file) {
-                    mSuccessNumber = mSuccessNumber + 1;
-                    if (mSuccessNumber == mThreadSize) {
+                    mSuccessNumber.addAndGet(1);
+                    Log.i(TAG, "mSuccessNumber=" + mSuccessNumber.intValue());
+                    if (mSuccessNumber.intValue() == mThreadSize) {
                         mDownloadCallback.onSuccess(file);
                         DownloadDispatcher.getInstance().recyclerTask(DownloadTask.this);
                         //如果下载完毕，清除数据库  todo
@@ -73,14 +97,13 @@ public class DownloadTask {
                     //这里需要synchronized下
                     synchronized (DownloadTask.this) {
                         mTotalProgress = mTotalProgress + progress;
-                        //Log.i(TAG, "mTotalProgress==" + mTotalProgress);
                         mDownloadCallback.onProgress(mTotalProgress, currentLength);
                     }
                 }
 
                 @Override
                 public void onPause(long progress, long currentLength) {
-                    mDownloadCallback.onPause(progress,currentLength);
+                    mDownloadCallback.onPause(progress, currentLength);
                 }
             });
             //通过线程池去执行
