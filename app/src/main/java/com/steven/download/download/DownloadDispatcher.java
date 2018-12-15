@@ -35,9 +35,8 @@ public class DownloadDispatcher {
     private static final int CORE_POOL_SIZE = THREAD_SIZE;
     //线程池
     private ExecutorService mExecutorService;
-    //private final Deque<DownloadTask> readyTasks = new ArrayDeque<>();
     private final Deque<DownloadTask> runningTasks = new ArrayDeque<>();
-    //private final Deque<DownloadTask> stopTasks = new ArrayDeque<>();
+    private DownloadTask downloadTask = null;
 
     private DownloadDispatcher() {
     }
@@ -89,6 +88,7 @@ public class DownloadDispatcher {
      * @param callBack 回调接口
      */
     public void startDownload(final String folder, final String name, final String url, final DownloadCallback callBack) {
+        searchDownloadTask(url);
         Call call = OkHttpManager.getInstance().asyncCall(url);
         call.enqueue(new Callback() {
             @Override
@@ -105,11 +105,30 @@ public class DownloadDispatcher {
                 if (contentLength <= -1) {
                     return;
                 }
+                //如果有暂停的并且在队列中的下载任务，则直接取出来继续下载
+                if (downloadTask != null) {
+                    downloadTask.continueDownload();
+                    return;
+                }
                 DownloadTask downloadTask = new DownloadTask(folder, name, url, THREAD_SIZE, contentLength, callBack);
                 downloadTask.init();
                 runningTasks.add(downloadTask);
             }
         });
+    }
+
+    /**
+     * 查询是否有在暂停的存在内存中的下载任务
+     *
+     * @param url 下载url
+     */
+    private void searchDownloadTask(String url) {
+        for (DownloadTask task : runningTasks) {
+            if (url.equals(task.getUrl())) {
+                downloadTask = task;
+                break;
+            }
+        }
     }
 
     /**
@@ -129,7 +148,7 @@ public class DownloadDispatcher {
     /**
      * @param downLoadTask 下载任务
      */
-    public void recyclerTask(DownloadTask downLoadTask) {
+    void recyclerTask(DownloadTask downLoadTask) {
         runningTasks.remove(downLoadTask);
         //参考OkHttp的Dispatcher()的源码
         //readyTasks.

@@ -1,8 +1,14 @@
 package com.steven.download.utils;
 
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -15,49 +21,16 @@ import java.text.DecimalFormat;
  * @author: yanzhiwen
  */
 public class Utils {
-    public static String md5Url(String url) {
-        if (TextUtils.isEmpty(url)) {
-            return url;
-        }
-        return md5(url);
 
-    }
-
-    private static String md5(String s) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("MD5");
-            digest.update(s.getBytes());
-            byte[] messageDigest = digest.digest();
-            return toHexString(messageDigest);
-        } catch (NoSuchAlgorithmException e) {
-            //LogDebugger.exception(e.getMessage());
-        }
-        return s;
-    }
-
-    private static final char[] HEX_DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
-    public static String toHexString(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte aByte : bytes) {
-            sb.append(HEX_DIGITS[(aByte & 0xf0) >>> 4]);
-            sb.append(HEX_DIGITS[aByte & 0x0f]);
-        }
-        return sb.toString();
-    }
-
-    public static void close(Closeable closeable) {
-        try {
-            if (closeable != null) {
-                closeable.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
+    /**
+     * 保留两位小数
+     * @param value
+     * @return
+     */
     public static float keepTwoBit(float value) {
         DecimalFormat df = new DecimalFormat("0.00");
         return Float.parseFloat(df.format(value));
     }
+
+
 }

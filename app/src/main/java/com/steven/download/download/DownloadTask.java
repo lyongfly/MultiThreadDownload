@@ -1,10 +1,18 @@
 package com.steven.download.download;
 
+import android.support.annotation.NonNull;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -14,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author: yanzhiwen
  */
 public class DownloadTask {
-    private static final String TAG = "DownloadTask";
     /**
      * 文件下载的url
      */
@@ -48,6 +55,10 @@ public class DownloadTask {
      */
     private List<DownloadRunnable> mDownloadRunnables;
     private DownloadCallback mDownloadCallback;
+    /**
+     * 记录是否暂停下载
+     */
+    private AtomicBoolean atomicIsStoped = new AtomicBoolean(false);
 
     public DownloadTask(String folder, String name, String url, int threadSize, long contentLength, DownloadCallback callBack) {
         this.folder = folder;
@@ -57,10 +68,23 @@ public class DownloadTask {
         this.mContentLength = contentLength;
         this.mDownloadRunnables = new ArrayList<>();
         this.mDownloadCallback = callBack;
-        mSuccessNumber = new AtomicInteger(0);
+        this.mSuccessNumber = new AtomicInteger(0);
     }
 
-    public void init() {
+    void init() {
+        //检查是否有记录的断点信息，如果有则读取断点信息继续下载
+        List<BreakPoint> points = getBreakPoints(folder, name);
+        if (!points.isEmpty()) {
+            mThreadSize = points.size();
+            long leaveLength = 0;
+            for (int i = 0; i < mThreadSize; i++) {
+                BreakPoint point = points.get(i);
+                leaveLength += (point.end - point.start);
+                mTotalProgress = mContentLength - leaveLength;
+                initDownloadRunnable(point.threadId, point.start, point.end);
+            }
+            return;
+        }
         for (int i = 0; i < mThreadSize; i++) {
             //初始化的时候，需要读取数据库
             //每个线程的下载的大小threadSize
@@ -72,43 +96,144 @@ public class DownloadTask {
             if (i == mThreadSize - 1) {
                 end = mContentLength - 1;
             }
-            DownloadRunnable downloadRunnable = new DownloadRunnable(folder, name, url, mContentLength, i, start, end, new DownloadCallback() {
-                @Override
-                public void onFailure(Exception e) {
-                    //有一个线程发生异常，下载失败，需要把其它线程停止掉
+            initDownloadRunnable(i, start, end);
+        }
+    }
+
+    /**
+     * 初始化下载线程
+     *
+     * @param theadId
+     * @param start
+     * @param end
+     */
+    private void initDownloadRunnable(int theadId, long start, long end) {
+        DownloadRunnable downloadRunnable = new DownloadRunnable(folder, name, url, mContentLength, theadId, start, end, new DownloadCallback() {
+            @Override
+            public void onFailure(Exception e) {
+                //有一个线程发生异常，下载失败，需要把其它线程停止掉
+                if (!atomicIsStoped.get()) {
+                    atomicIsStoped.set(true);
                     mDownloadCallback.onFailure(e);
                     stopDownload();
                 }
+            }
 
-                @Override
-                public void onSuccess(File file) {
-                    mSuccessNumber.addAndGet(1);
-                    Log.i(TAG, "mSuccessNumber=" + mSuccessNumber.intValue());
-                    if (mSuccessNumber.intValue() == mThreadSize) {
-                        mDownloadCallback.onSuccess(file);
-                        DownloadDispatcher.getInstance().recyclerTask(DownloadTask.this);
-                        //如果下载完毕，清除数据库  todo
-                    }
+            @Override
+            public void onSuccess(File file) {
+                mSuccessNumber.addAndGet(1);
+                if (mSuccessNumber.intValue() == mThreadSize) {
+                    mDownloadCallback.onSuccess(file);
+                    DownloadDispatcher.getInstance().recyclerTask(DownloadTask.this);
                 }
+            }
 
-                @Override
-                public void onProgress(long progress, long currentLength) {
-                    //叠加下progress，实时去更新进度条
-                    //这里需要synchronized下
-                    synchronized (DownloadTask.this) {
-                        mTotalProgress = mTotalProgress + progress;
-                        mDownloadCallback.onProgress(mTotalProgress, currentLength);
-                    }
+            @Override
+            public void onProgress(long progress, long currentLength) {
+                //叠加下progress，实时去更新进度条
+                //这里需要synchronized下
+                synchronized (DownloadTask.this) {
+                    mTotalProgress = mTotalProgress + progress;
+                    mDownloadCallback.onProgress(mTotalProgress, currentLength);
                 }
+            }
 
-                @Override
-                public void onPause(long progress, long currentLength) {
-                    mDownloadCallback.onPause(progress, currentLength);
+            @Override
+            public void onPause() {
+                if (!atomicIsStoped.get()) {
+                    atomicIsStoped.set(true);
+                    mDownloadCallback.onPause();
                 }
-            });
-            //通过线程池去执行
-            DownloadDispatcher.getInstance().executorService().execute(downloadRunnable);
-            mDownloadRunnables.add(downloadRunnable);
+            }
+        });
+        //通过线程池去执行
+        DownloadDispatcher.getInstance().executorService().execute(downloadRunnable);
+        mDownloadRunnables.add(downloadRunnable);
+    }
+
+    /**
+     * 获取断点记录
+     *
+     * @param folder
+     * @param fileName
+     * @return
+     */
+    private List<BreakPoint> getBreakPoints(String folder, final String fileName) {
+        List<BreakPoint> points = new ArrayList<>();
+        File[] files = new File(folder).listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.startsWith("." + fileName + ".");
+            }
+        });
+        for (File file : files) {
+            String content = getFileContent(file);
+            String name = file.getName();
+            String threadId = name.substring(name.lastIndexOf(".") + 1);
+            if (!TextUtils.isEmpty(content)) {
+                String[] arrays = content.split("-");
+                if (arrays.length == 2) {
+                    points.add(new BreakPoint(Long.parseLong(arrays[0]), Long.parseLong(arrays[1]), Integer.parseInt(threadId)));
+                }
+            }
+        }
+        Collections.sort(points, new Comparator<BreakPoint>() {
+            @Override
+            public int compare(BreakPoint o1, BreakPoint o2) {
+                return o1.start.compareTo(o2.start);
+            }
+        });
+        return points;
+    }
+
+    private static class BreakPoint {
+        Long start;
+        Long end;
+        int threadId;
+
+        BreakPoint(long start, long end, int threadId) {
+            this.start = start;
+            this.end = end;
+            this.threadId = threadId;
+        }
+    }
+
+    /**
+     * 读取断点内容
+     *
+     * @param file
+     * @return
+     */
+    private String getFileContent(@NonNull File file) {
+        FileInputStream fileInputStream = null;
+        try {
+            fileInputStream = new FileInputStream(file);
+            byte[] bytes = new byte[fileInputStream.available()];
+            int length = fileInputStream.read(bytes);
+            if (length > 0) {
+                return new String(bytes);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (fileInputStream != null) fileInputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return "";
+    }
+
+    /**
+     * 从内存中获取断点继续下载
+     */
+    public void continueDownload() {
+        atomicIsStoped.set(false);
+        for (DownloadRunnable downloadRunnable : mDownloadRunnables) {
+            if (!downloadRunnable.isCompleted()) {
+                DownloadDispatcher.getInstance().executorService().execute(downloadRunnable);
+            }
         }
     }
 

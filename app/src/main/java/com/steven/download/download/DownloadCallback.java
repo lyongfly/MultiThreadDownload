@@ -32,9 +32,6 @@ public interface DownloadCallback {
 
     /**
      * 暂停
-     *
-     * @param progress
-     * @param currentLength
      */
-    void onPause(long progress, long currentLength);
+    void onPause();
 }

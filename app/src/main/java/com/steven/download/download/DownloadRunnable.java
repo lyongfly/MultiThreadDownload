@@ -1,14 +1,20 @@
 package com.steven.download.download;
 
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.steven.download.okhttp.OkHttpManager;
 import com.steven.download.utils.Utils;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 
 import okhttp3.Response;
 
@@ -58,7 +64,18 @@ public class DownloadRunnable implements Runnable {
      * 文件的总大小 content-length
      */
     private long mCurrentLength;
+    /**
+     * 下载回调
+     */
     private DownloadCallback downloadCallback;
+    /**
+     * 是否下载完成
+     */
+    private boolean mCompleted = false;
+    /**
+     * 断点存储文件,文件名称为 .name.apk.1 信息格式为 start + "-" + end
+     */
+    private File breakPointFile;
 
     public DownloadRunnable(String folder, String name, String url, long currentLength, int threadId, long start, long end, DownloadCallback downloadCallback) {
         this.folder = folder;
@@ -69,10 +86,12 @@ public class DownloadRunnable implements Runnable {
         this.start = start;
         this.end = end;
         this.downloadCallback = downloadCallback;
+        this.breakPointFile = new File(folder, "." + name + "." + threadId);
     }
 
     @Override
     public void run() {
+        mStatus = STATUS_DOWNLOADING;
         InputStream inputStream = null;
         RandomAccessFile randomAccessFile = null;
         try {
@@ -91,30 +110,92 @@ public class DownloadRunnable implements Runnable {
             while ((length = inputStream.read(bytes)) != -1) {
                 if (mStatus == STATUS_STOP) {
                     isSuccess = false;
-                    downloadCallback.onPause(length, mCurrentLength);
+                    downloadCallback.onPause();
                     break;
                 }
                 //写入
                 randomAccessFile.write(bytes, 0, length);
-                //保存下进度，做断点 todo
+                //保存下进度，做断点
+                start += length;
                 mProgress = mProgress + length;
                 //实时去更新下进度条，将每次写入的length传出去
                 downloadCallback.onProgress(length, mCurrentLength);
             }
-            if (isSuccess) {
+            if (mCompleted = isSuccess) {
+                deleteBreakPointFile();
                 downloadCallback.onSuccess(file);
             }
         } catch (IOException e) {
-            e.printStackTrace();
             downloadCallback.onFailure(e);
         } finally {
-            Utils.close(inputStream);
-            Utils.close(randomAccessFile);
-            //保存到数据库 怎么存？？ todo
+            //保存到文件记录断点
+            recordProgress(start, end);
+            close(inputStream);
+            close(randomAccessFile);
         }
     }
 
+    /**
+     * 停止下载
+     */
     public void stop() {
         mStatus = STATUS_STOP;
+    }
+
+
+    /**
+     * 是否下载完成
+     *
+     * @return true false
+     */
+    public boolean isCompleted() {
+        return mCompleted;
+    }
+
+    /**
+     * 记录当前下载的断点
+     *
+     * @param start
+     * @param end
+     */
+    private void recordProgress(long start, long end) {
+        if (start < end) {
+            FileOutputStream fileOutputStream = null;
+            try {
+                fileOutputStream = new FileOutputStream(breakPointFile);
+                String breakPointContent = start + "-" + end;
+                fileOutputStream.write(breakPointContent.getBytes("UTF-8"));
+                fileOutputStream.flush();
+            } catch (IOException e) {
+                Log.e(TAG, e.getMessage());
+            } finally {
+                close(fileOutputStream);
+            }
+        }
+    }
+
+    /**
+     * 删除断点记录文件
+     */
+    private void deleteBreakPointFile() {
+        if (breakPointFile != null && breakPointFile.exists()) {
+            breakPointFile.delete();
+        }
+    }
+
+
+    /**
+     * 关闭流
+     *
+     * @param closeable
+     */
+    private void close(Closeable closeable) {
+        try {
+            if (closeable != null) {
+                closeable.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

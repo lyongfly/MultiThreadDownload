@@ -90,7 +90,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
-                        public void onPause(long progress, long currentLength) {
+                        public void onPause() {
+                            Log.i(TAG, "onPause:暂停下载 ");
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -130,7 +131,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
-                        public void onPause(long progress, long currentLength) {
+                        public void onPause() {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -168,7 +169,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onPause(long progress, long currentLength) {
+                    public void onPause() {
 
                     }
                 });
