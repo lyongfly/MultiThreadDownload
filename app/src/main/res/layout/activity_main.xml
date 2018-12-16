@@ -173,4 +173,16 @@
         android:layout_height="1px"
         android:background="#cecece"/>
 
+    <Button
+        android:id="@+id/btn_all"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="开始所有下载"/>
+
+    <Button
+        android:id="@+id/btn_delete"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="删除所有下载"/>
+
 </LinearLayout>

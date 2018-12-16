@@ -110,7 +110,7 @@ public class DownloadRunnable implements Runnable {
             while ((length = inputStream.read(bytes)) != -1) {
                 if (mStatus == STATUS_STOP) {
                     isSuccess = false;
-                    downloadCallback.onPause();
+                    downloadCallback.onPause(file);
                     break;
                 }
                 //写入

@@ -54,24 +54,34 @@ public class DownloadTask {
      * 下载的线程集合
      */
     private List<DownloadRunnable> mDownloadRunnables;
+    /**
+     * 下载回调
+     */
     private DownloadCallback mDownloadCallback;
     /**
      * 记录是否暂停下载
      */
     private AtomicBoolean atomicIsStoped = new AtomicBoolean(false);
+    /**
+     * 设置tag，用于取消
+     */
+    private Object tag;
 
-    public DownloadTask(String folder, String name, String url, int threadSize, long contentLength, DownloadCallback callBack) {
+    public DownloadTask(String folder, String name, String url, int threadSize, long contentLength, Object tag, DownloadCallback callBack) {
         this.folder = folder;
         this.name = name;
         this.url = url;
         this.mThreadSize = threadSize;
         this.mContentLength = contentLength;
         this.mDownloadRunnables = new ArrayList<>();
+        this.tag = tag;
         this.mDownloadCallback = callBack;
         this.mSuccessNumber = new AtomicInteger(0);
     }
 
     void init() {
+        //开始下载之前
+        mDownloadCallback.onStart(name);
         //检查是否有记录的断点信息，如果有则读取断点信息继续下载
         List<BreakPoint> points = getBreakPoints(folder, name);
         if (!points.isEmpty()) {
@@ -109,6 +119,12 @@ public class DownloadTask {
      */
     private void initDownloadRunnable(int theadId, long start, long end) {
         DownloadRunnable downloadRunnable = new DownloadRunnable(folder, name, url, mContentLength, theadId, start, end, new DownloadCallback() {
+
+            @Override
+            public void onStart(String fileName) {
+
+            }
+
             @Override
             public void onFailure(Exception e) {
                 //有一个线程发生异常，下载失败，需要把其它线程停止掉
@@ -116,6 +132,8 @@ public class DownloadTask {
                     atomicIsStoped.set(true);
                     mDownloadCallback.onFailure(e);
                     stopDownload();
+                    //下载失败回收任务，继续下载后面等待的任务
+                    DownloadDispatcher.getInstance().recyclerTask(DownloadTask.this);
                 }
             }
 
@@ -124,6 +142,7 @@ public class DownloadTask {
                 mSuccessNumber.addAndGet(1);
                 if (mSuccessNumber.intValue() == mThreadSize) {
                     mDownloadCallback.onSuccess(file);
+                    //下载成功回收任务，继续下载后面等待的任务
                     DownloadDispatcher.getInstance().recyclerTask(DownloadTask.this);
                 }
             }
@@ -139,10 +158,10 @@ public class DownloadTask {
             }
 
             @Override
-            public void onPause() {
+            public void onPause(File file) {
                 if (!atomicIsStoped.get()) {
                     atomicIsStoped.set(true);
-                    mDownloadCallback.onPause();
+                    mDownloadCallback.onPause(file);
                 }
             }
         });
@@ -249,4 +268,13 @@ public class DownloadTask {
     public String getUrl() {
         return url;
     }
+
+    public Object getTag() {
+        return this.tag;
+    }
+
+    public String getName(){
+        return name;
+    }
+
 }

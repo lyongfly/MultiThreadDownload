@@ -9,6 +9,20 @@ import java.io.File;
  * @author: yanzhiwen
  */
 public interface DownloadCallback {
+
+    /**
+     * 开始下载
+     * @param fileName  文件名称
+     */
+    void onStart(String fileName);
+
+    /**
+     * 下载进度
+     *
+     * @param progress
+     */
+    void onProgress(long progress, long currentLength);
+
     /**
      * 下载成功
      *
@@ -24,14 +38,7 @@ public interface DownloadCallback {
     void onFailure(Exception e);
 
     /**
-     * 下载进度
-     *
-     * @param progress
-     */
-    void onProgress(long progress, long currentLength);
-
-    /**
      * 暂停
      */
-    void onPause();
+    void onPause(File file);
 }

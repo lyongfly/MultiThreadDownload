@@ -3,6 +3,7 @@ package com.steven.download;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -20,10 +21,15 @@ import java.io.File;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSION_CODE = 0x088;
-    private String[] url = {"http://gdown.baidu.com/data/wisegame/f170a8c78bcf9aac/QQ_818.apk",
+    private String[] url = {
+            "http://gdown.baidu.com/data/wisegame/f170a8c78bcf9aac/QQ_818.apk",
+            "http://acj3.pc6.com/pc6_soure/2018-9/com.nuomi_372.apk",
+            "http://acj3.pc6.com/pc6_soure/2018-12/com.baidu.lbs.waimai_152.apk",
+            "https://downapp.baidu.com/Baidunetdisk/AndroidPhone/9.1.3.0/1/1021768b/20181130185829/Baidunetdisk_AndroidPhone_9-1-3-0_1021768b.apk?responseContentDisposition=attachment%3Bfilename%3D%22Baidunetdisk_AndroidPhone_1021768b.apk%22&responseContentType=application%2Fvnd.android.package-archive&request_id=1544935977_4410740200&type=static",
+            "http://acj3.pc6.com/pc6_soure/2018-12/com.baidu.baidutranslate_92.apk",
             "http://gdown.baidu.com/data/wisegame/89eb17d6287ae627/weixin_1300.apk",
             "http://gdown.baidu.com/data/wisegame/89fce26b620d8d43/QQkongjian_109.apk"};
-    private String[] names = {"QQ_818.apk", "weixin_1300.apk", "QQkongjian_109.apk"};
+    private String[] names = {"QQ_818.apk", "weixin_13001.apk", "weixin_13002.apk", "weixin_130021.apk", "weixin_13003.apk", "weixin_13004.apk", "QQkongjian_109.apk"};
     private CircleProgressbar mQQpb;
     private CircleProgressbar mWeChatPb;
     private CircleProgressbar mQzonePb;
@@ -44,6 +50,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mQQpb.setOnClickListener(this);
         mWeChatPb.setOnClickListener(this);
         mQzonePb.setOnClickListener(this);
+        findViewById(R.id.btn_all).setOnClickListener(this);
+        findViewById(R.id.btn_delete).setOnClickListener(this);
         int isPermission = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (isPermission == PackageManager.PERMISSION_DENIED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_PERMISSION_CODE);
@@ -69,9 +77,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (mQQpb.getTag().equals(STATUS_DOWNLOADING)) {
                     mQQpb.setTag(STATUS_STOP);
                     DownloadDispatcher.getInstance().startDownload(names[0], url[0], new DownloadCallback() {
+
                         @Override
                         public void onFailure(Exception e) {
-                            Log.i(TAG, "onFailure: 多线程下载失败");
+                            Log.i(TAG, "onFailure: 多线程下载失败 " + e.getMessage());
+                        }
+
+                        @Override
+                        public void onStart(String fileName) {
+
                         }
 
                         @Override
@@ -90,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
-                        public void onPause() {
+                        public void onPause(File file) {
                             Log.i(TAG, "onPause:暂停下载 ");
                             runOnUiThread(new Runnable() {
                                 @Override
@@ -116,6 +130,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
+                        public void onStart(String fileName) {
+
+                        }
+
+                        @Override
                         public void onSuccess(File file) {
                             Log.i("DownLoadActivity", "onSuccess:多线程下载成功 " + file.getAbsolutePath());
                         }
@@ -131,7 +150,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
-                        public void onPause() {
+                        public void onPause(File file) {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -150,7 +169,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 DownloadDispatcher.getInstance().startDownload(names[2], url[2], new DownloadCallback() {
                     @Override
                     public void onFailure(Exception e) {
-                        Log.i(TAG, "onFailure: 多线程下载失败");
+                        Log.i(TAG, "onFailure: 多线程下载失败 " + e.getMessage());
+                    }
+
+                    @Override
+                    public void onStart(String fileName) {
+
                     }
 
                     @Override
@@ -169,10 +193,44 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onPause() {
+                    public void onPause(File file) {
 
                     }
                 });
+                break;
+            case R.id.btn_all:
+                String folder = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "apk";
+                for (int i = 0; i < url.length; i++) {
+                    DownloadDispatcher.getInstance().setMaxTaskSize(2).startDownload(folder, names[i], url[i], new DownloadCallback() {
+                        @Override
+                        public void onStart(String fileName) {
+                            Log.i(TAG,"onStart-> " + fileName);
+                        }
+
+                        @Override
+                        public void onSuccess(File file) {
+                            Log.i(TAG, "onSuccess->" + file.getName());
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            Log.e(TAG, "onFailure->" + e.getMessage());
+                        }
+
+                        @Override
+                        public void onProgress(long progress, long currentLength) {
+//                            Log.i(TAG,fileName +":" + Utils.keepTwoBit((float) progress / currentLength));
+                        }
+
+                        @Override
+                        public void onPause(File file) {
+                            Log.e(TAG, "onPause-> " + file.getName());
+                        }
+                    });
+                }
+                break;
+            case R.id.btn_delete:
+                DownloadDispatcher.getInstance().cancelAll();
                 break;
             default:
         }
