@@ -2,7 +2,6 @@ package com.steven.download.download;
 
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,11 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Description:每个apk的下载，这个类需要复用的
- * Data：4/19/2018-1:45 PM
- *
- * @author: yanzhiwen
  */
-public class DownloadTask {
+class DownloadTask {
     /**
      * 文件下载的url
      */
@@ -265,16 +261,19 @@ public class DownloadTask {
         }
     }
 
+    /**
+     * 获取url
+     * @return
+     */
     public String getUrl() {
         return url;
     }
 
+    /**
+     * 获取tag
+     * @return
+     */
     public Object getTag() {
         return this.tag;
     }
-
-    public String getName(){
-        return name;
-    }
-
 }

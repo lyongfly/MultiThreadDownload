@@ -1,17 +1,14 @@
 package com.steven.download.download;
 
-import android.nfc.Tag;
 import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
-import android.util.Log;
 
 import com.steven.download.okhttp.OkHttpManager;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
@@ -26,13 +23,9 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Description:
- * Data：4/19/2018-1:45 PM
- *
- * @author: yanzhiwen
+ * 下载分发
  */
 public class DownloadDispatcher {
-    private static final String TAG = "DownloadDispatcher";
     private static volatile DownloadDispatcher sDownloadDispatcher;
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int THREAD_SIZE = Math.max(3, Math.min(CPU_COUNT - 1, 5));
@@ -141,7 +134,6 @@ public class DownloadDispatcher {
                 //获取文件的大小
                 ResponseBody responseBody = response.body();
                 long contentLength = responseBody == null ? -1 : responseBody.contentLength();
-                Log.i(TAG, "contentLength=" + contentLength);
                 if (contentLength <= -1) {
                     return;
                 }
@@ -152,13 +144,10 @@ public class DownloadDispatcher {
                 }
                 DownloadTask downloadTask = new DownloadTask(folder, name, url, THREAD_SIZE, contentLength, tag, callBack);
                 // 将任务加入下载队列
-                Log.d(TAG, "runningTaskSize->" + runningTasks.size());
                 if (runningTasks.size() < MAX_TASK_SIZE) {
                     runningTasks.addLast(downloadTask);
-                    Log.d(TAG, "正在下载任务->" + downloadTask.getName());
                     downloadTask.init();
                 } else {
-                    Log.d(TAG, "等待下载任务->" + downloadTask.getName());
                     readyTasks.addLast(downloadTask);
                 }
             }
@@ -188,7 +177,6 @@ public class DownloadDispatcher {
         DownloadTask task = readyTasks.peekFirst();
         if (task != null) {
             readyTasks.remove(task);
-            Log.d(TAG, "加入下载队列->" + task.getName());
             runningTasks.addLast(task);
             task.init();
         }
@@ -269,5 +257,4 @@ public class DownloadDispatcher {
             }
         }
     }
-
 }

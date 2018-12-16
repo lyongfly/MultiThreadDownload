@@ -1,31 +1,21 @@
 package com.steven.download.download;
 
-import android.support.annotation.NonNull;
-import android.util.Log;
 
 import com.steven.download.okhttp.OkHttpManager;
-import com.steven.download.utils.Utils;
-
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
 
 import okhttp3.Response;
 
 /**
- * Description:
- * Data：4/19/2018-1:45 PM
+ * Description: 下载线程
  *
- * @author: yanzhiwen
  */
-public class DownloadRunnable implements Runnable {
-    private static final String TAG = "DownloadRunnable";
+class DownloadRunnable implements Runnable {
     private static final int STATUS_DOWNLOADING = 1;
     private static final int STATUS_STOP = 2;
     /**
@@ -44,10 +34,6 @@ public class DownloadRunnable implements Runnable {
      * 文件存储路径
      */
     private String folder;
-    /**
-     * 线程id
-     */
-    private int threadId;
     /**
      * 每个线程下载开始的位置
      */
@@ -82,7 +68,6 @@ public class DownloadRunnable implements Runnable {
         this.name = name;
         this.url = url;
         this.mCurrentLength = currentLength;
-        this.threadId = threadId;
         this.start = start;
         this.end = end;
         this.downloadCallback = downloadCallback;
@@ -96,8 +81,6 @@ public class DownloadRunnable implements Runnable {
         RandomAccessFile randomAccessFile = null;
         try {
             Response response = OkHttpManager.getInstance().syncResponse(url, start, end);
-            Log.i(TAG, "fileName=" + name + " 每个线程负责下载文件大小contentLength=" + response.body().contentLength()
-                    + " 开始位置start=" + start + "结束位置end=" + end + " threadId=" + threadId);
             inputStream = response.body().byteStream();
             //保存文件的路径
             File file = new File(folder, name);
@@ -167,7 +150,7 @@ public class DownloadRunnable implements Runnable {
                 fileOutputStream.write(breakPointContent.getBytes("UTF-8"));
                 fileOutputStream.flush();
             } catch (IOException e) {
-                Log.e(TAG, e.getMessage());
+                e.printStackTrace();
             } finally {
                 close(fileOutputStream);
             }

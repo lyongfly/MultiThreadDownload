@@ -13,10 +13,13 @@ import android.widget.Toast;
 
 import com.steven.download.download.DownloadCallback;
 import com.steven.download.download.DownloadDispatcher;
+import com.steven.download.okhttp.OkHttpManager;
 import com.steven.download.utils.Utils;
 import com.steven.download.widget.CircleProgressbar;
 
 import java.io.File;
+
+import okhttp3.OkHttpClient;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String TAG = "MainActivity";
