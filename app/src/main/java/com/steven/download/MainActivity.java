@@ -13,26 +13,56 @@ import android.widget.Toast;
 
 import com.steven.download.download.DownloadCallback;
 import com.steven.download.download.DownloadDispatcher;
-import com.steven.download.okhttp.OkHttpManager;
+import com.steven.download.download.DownloadTask;
+import com.steven.download.upload.UploadCallback;
+import com.steven.download.upload.UploadDispatcher;
 import com.steven.download.utils.Utils;
 import com.steven.download.widget.CircleProgressbar;
 
 import java.io.File;
 
-import okhttp3.OkHttpClient;
-
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String TAG = "MainActivity";
     private static final int REQUEST_PERMISSION_CODE = 0x088;
+    String ip = "http://192.168.137.1:8888/v410";
+//    private String[] url = {
+//            "http://gdown.baidu.com/data/wisegame/f170a8c78bcf9aac/QQ_818.apk",
+//            "http://acj3.pc6.com/pc6_soure/2018-9/com.nuomi_372.apk",
+//            "http://acj3.pc6.com/pc6_soure/2018-12/com.baidu.lbs.waimai_152.apk",
+//            "https://downapp.baidu.com/Baidunetdisk/AndroidPhone/9.1.3.0/1/1021768b/20181130185829/Baidunetdisk_AndroidPhone_9-1-3-0_1021768b" +
+//                    ".apk?responseContentDisposition=attachment%3Bfilename%3D%22Baidunetdisk_AndroidPhone_1021768b.apk%22&responseContentType=application%2Fvnd.android" +
+//                    ".package-archive&request_id=1544935977_4410740200&type=static",
+//            "http://acj3.pc6.com/pc6_soure/2018-12/com.baidu.baidutranslate_92.apk",
+//            "http://gdown.baidu.com/data/wisegame/89eb17d6287ae627/weixin_1300.apk",
+//            "http://gdown.baidu.com/data/wisegame/89fce26b620d8d43/QQkongjian_109.apk"};
+//    private String[] names = {"QQ_818.apk", "weixin_13001.apk", "weixin_13002.apk", "weixin_130021.apk", "weixin_13003.apk", "weixin_13004.apk", "QQkongjian_109.apk"};
+
     private String[] url = {
-            "http://gdown.baidu.com/data/wisegame/f170a8c78bcf9aac/QQ_818.apk",
-            "http://acj3.pc6.com/pc6_soure/2018-9/com.nuomi_372.apk",
-            "http://acj3.pc6.com/pc6_soure/2018-12/com.baidu.lbs.waimai_152.apk",
-            "https://downapp.baidu.com/Baidunetdisk/AndroidPhone/9.1.3.0/1/1021768b/20181130185829/Baidunetdisk_AndroidPhone_9-1-3-0_1021768b.apk?responseContentDisposition=attachment%3Bfilename%3D%22Baidunetdisk_AndroidPhone_1021768b.apk%22&responseContentType=application%2Fvnd.android.package-archive&request_id=1544935977_4410740200&type=static",
-            "http://acj3.pc6.com/pc6_soure/2018-12/com.baidu.baidutranslate_92.apk",
-            "http://gdown.baidu.com/data/wisegame/89eb17d6287ae627/weixin_1300.apk",
-            "http://gdown.baidu.com/data/wisegame/89fce26b620d8d43/QQkongjian_109.apk"};
-    private String[] names = {"QQ_818.apk", "weixin_13001.apk", "weixin_13002.apk", "weixin_130021.apk", "weixin_13003.apk", "weixin_13004.apk", "QQkongjian_109.apk"};
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=QQ_818.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=weixin_13001.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=weixin_13002.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=weixin_130021.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=weixin_13003.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=weixin_13004.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=QQkongjian_109.apk",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=navicat.exe",
+//            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=mysql.msi",
+            ip + "/file/download?appid=ls_ess&folder=apk&clientid=000000&filename=idea-1.exe"
+    };
+
+    private String[] names = {
+//            "QQ_818.apk",
+//            "weixin_13001.apk",
+//            "weixin_13002.apk",
+//            "weixin_130021.apk",
+//            "weixin_13003.apk",
+//            "weixin_13004.apk",
+//            "QQkongjian_109.apk",
+//            "navicat.exe",
+//            "mysql.msi",
+            "idea-1.exe"
+    };
+
     private CircleProgressbar mQQpb;
     private CircleProgressbar mWeChatPb;
     private CircleProgressbar mQzonePb;
@@ -53,6 +83,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mQQpb.setOnClickListener(this);
         mWeChatPb.setOnClickListener(this);
         mQzonePb.setOnClickListener(this);
+        findViewById(R.id.btn_cancel_upload).setOnClickListener(this);
+        findViewById(R.id.btn_upload).setOnClickListener(this);
         findViewById(R.id.btn_all).setOnClickListener(this);
         findViewById(R.id.btn_delete).setOnClickListener(this);
         int isPermission = ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -87,7 +119,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
-                        public void onStart(String fileName) {
+                        public void onStart(String fileName, int status) {
 
                         }
 
@@ -98,6 +130,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                         @Override
                         public void onProgress(final long totalProgress, final long currentLength) {
+                            Log.d("progress", "totalProgress-> " + totalProgress + " contentLength->" + currentLength
+                                    + "  progress->" + Utils.keepTwoBit((float) totalProgress / currentLength));
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -119,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     });
                 } else if (mQQpb.getTag().equals(STATUS_STOP)) {
                     mQQpb.setTag(STATUS_DOWNLOADING);
-                    DownloadDispatcher.getInstance().stopDownLoad(url[0]);
+                    DownloadDispatcher.getInstance().stopDownload(url[0]);
                     mQQpb.setText("继续");
                 }
                 break;
@@ -133,7 +167,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         }
 
                         @Override
-                        public void onStart(String fileName) {
+                        public void onStart(String fileName, int status) {
 
                         }
 
@@ -144,6 +178,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                         @Override
                         public void onProgress(final long totalProgress, final long currentLength) {
+                            Log.d("progress", "progress-> " + Utils.keepTwoBit((float) totalProgress / currentLength) + " contentLength->" + currentLength);
+
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -164,7 +200,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     });
                 } else if (mWeChatPb.getTag().equals(STATUS_STOP)) {
                     mWeChatPb.setTag(STATUS_DOWNLOADING);
-                    DownloadDispatcher.getInstance().stopDownLoad(url[1]);
+                    DownloadDispatcher.getInstance().stopDownload(url[1]);
                     mWeChatPb.setText("继续");
                 }
                 break;
@@ -176,7 +212,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onStart(String fileName) {
+                    public void onStart(String fileName, int status) {
 
                     }
 
@@ -206,8 +242,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 for (int i = 0; i < url.length; i++) {
                     DownloadDispatcher.getInstance().setMaxTaskSize(2).startDownload(folder, names[i], url[i], new DownloadCallback() {
                         @Override
-                        public void onStart(String fileName) {
-                            Log.i(TAG,"onStart-> " + fileName);
+                        public void onStart(String fileName, int status) {
+                            Log.i(TAG, "onStart-> " + fileName);
+                            if (DownloadTask.DownloadStatus.STATUS_DOWNLOADING == status) {
+
+                            }
                         }
 
                         @Override
@@ -233,7 +272,47 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
             case R.id.btn_delete:
-                DownloadDispatcher.getInstance().cancelAll();
+                DownloadDispatcher.getInstance().stopAll();
+                break;
+            case R.id.btn_upload:
+                folder = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "apk";
+                for (String name : names) {
+                    File file = new File(folder, name);
+                    if (!file.exists()) {
+                        continue;
+                    }
+                    String url = "http://192.168.137.1:8888/v410/file/upload?clientid=0000&appid=ls_ess&filename=" + name + "&folder=apk&lst=" + file.lastModified();
+                    UploadDispatcher.getInstance().setMaxTaskSize(2).startUpload(folder, name, url, new UploadCallback() {
+                        @Override
+                        public void onStart(String fileName, int status) {
+                            Log.d(TAG, "onStart-> " + fileName + " " + status);
+                        }
+
+                        @Override
+                        public void onProgress(long progress, long currentLength) {
+                            Log.d("progress", "totalProgress-> " + progress + " contentLength->" + currentLength
+                                    + "  progress->" + Utils.keepTwoBit((float) progress / currentLength));
+                        }
+
+                        @Override
+                        public void onSuccess(File file) {
+                            Log.d(TAG, "onSuccess-> " + file.getName());
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            Log.d(TAG, "onFailure-> " + e.getMessage());
+                        }
+
+                        @Override
+                        public void onPause(File file) {
+                            Log.d(TAG, "onPause-> " + file.getName());
+                        }
+                    });
+                }
+                break;
+            case R.id.btn_cancel_upload:
+                UploadDispatcher.getInstance().stopAll();
                 break;
             default:
         }

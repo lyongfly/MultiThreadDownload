@@ -23,27 +23,41 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * 下载分发
+ * 下载调度器
  */
 public class DownloadDispatcher {
     private static volatile DownloadDispatcher sDownloadDispatcher;
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int THREAD_SIZE = Math.max(3, Math.min(CPU_COUNT - 1, 5));
-    //核心线程数
+    /**
+     * 核心线程数
+     */
     private static final int CORE_POOL_SIZE = THREAD_SIZE;
-    //同时下载的最大任务数
-    private int MAX_TASK_SIZE = 3;
-    //线程池
+    /**
+     * 同时下载的最大任务数
+     */
+    private int maxTaskSize = 3;
+    /**
+     * 线程池
+     */
     private ExecutorService mExecutorService;
-    //准备下载的任务
+    /**
+     * 准备下载的任务
+     */
     private final Deque<DownloadTask> readyTasks = new ArrayDeque<>();
-    //正在下载的任务
-    private final Deque<DownloadTask> runningTasks = new ArrayDeque<>(2);
-    private DownloadTask downloadTask = null;
+    /**
+     * 正在下载的任务
+     */
+    private final Deque<DownloadTask> runningTasks = new ArrayDeque<>();
 
     private DownloadDispatcher() {
     }
 
+    /**
+     * 获取下载调度实例
+     *
+     * @return DownloadDispatcher
+     */
     public static DownloadDispatcher getInstance() {
         if (sDownloadDispatcher == null) {
             synchronized (DownloadDispatcher.class) {
@@ -53,6 +67,17 @@ public class DownloadDispatcher {
             }
         }
         return sDownloadDispatcher;
+    }
+
+    /**
+     * 设置最大同时下载任务数 默认为3
+     *
+     * @param maxTaskSize 最大任务数
+     * @return
+     */
+    public DownloadDispatcher setMaxTaskSize(int maxTaskSize) {
+        this.maxTaskSize = maxTaskSize < 1 ? 1 : (maxTaskSize > 5 ? 5 : maxTaskSize);
+        return this;
     }
 
     /**
@@ -73,16 +98,6 @@ public class DownloadDispatcher {
             });
         }
         return mExecutorService;
-    }
-
-    /**
-     * 设置最大同时下载任务数
-     *
-     * @param maxTaskSize 最大任务数
-     */
-    public DownloadDispatcher setMaxTaskSize(int maxTaskSize) {
-        this.MAX_TASK_SIZE = maxTaskSize;
-        return this;
     }
 
     /**
@@ -121,7 +136,6 @@ public class DownloadDispatcher {
      * @param callBack 回调接口
      */
     public void startDownload(final String folder, final String name, final String url, final Object tag, final DownloadCallback callBack) {
-        searchDownloadTask(url);
         Call call = OkHttpManager.getInstance().asyncCall(url);
         call.enqueue(new Callback() {
             @Override
@@ -137,35 +151,18 @@ public class DownloadDispatcher {
                 if (contentLength <= -1) {
                     return;
                 }
-                //如果有暂停的并且在队列中的下载任务，则直接取出来继续下载
-                if (downloadTask != null) {
-                    downloadTask.continueDownload();
-                    return;
-                }
                 DownloadTask downloadTask = new DownloadTask(folder, name, url, THREAD_SIZE, contentLength, tag, callBack);
                 // 将任务加入下载队列
-                if (runningTasks.size() < MAX_TASK_SIZE) {
+                if (runningTasks.size() < maxTaskSize) {
                     runningTasks.addLast(downloadTask);
+                    callBack.onStart(name, DownloadTask.DownloadStatus.STATUS_DOWNLOADING);
                     downloadTask.init();
                 } else {
+                    callBack.onStart(name, DownloadTask.DownloadStatus.STATUS_WAITING);
                     readyTasks.addLast(downloadTask);
                 }
             }
         });
-    }
-
-    /**
-     * 查询是否有在暂停的存在内存中的下载任务
-     *
-     * @param url 下载url
-     */
-    private void searchDownloadTask(String url) {
-        for (DownloadTask task : runningTasks) {
-            if (url.equals(task.getUrl())) {
-                downloadTask = task;
-                break;
-            }
-        }
     }
 
     /**
@@ -187,7 +184,7 @@ public class DownloadDispatcher {
      *
      * @param url
      */
-    public void stopDownLoad(String url) {
+    public void stopDownload(String url) {
         //这个停止是不是这个正在下载的
         stopTasks(runningTasks, url);
         stopTasks(readyTasks, url);

@@ -2,6 +2,7 @@ package com.steven.download.download;
 
 
 import com.steven.download.okhttp.OkHttpManager;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -12,16 +13,14 @@ import java.io.RandomAccessFile;
 import okhttp3.Response;
 
 /**
- * Description: 下载线程
- *
+ * 下载线程
  */
 class DownloadRunnable implements Runnable {
-    private static final int STATUS_DOWNLOADING = 1;
-    private static final int STATUS_STOP = 2;
+
     /**
      * 线程的状态
      */
-    private int mStatus = STATUS_DOWNLOADING;
+    private int mStatus = DownloadTask.DownloadStatus.STATUS_DOWNLOADING;
     /**
      * 文件下载的url
      */
@@ -43,10 +42,6 @@ class DownloadRunnable implements Runnable {
      */
     private long end;
     /**
-     * 每个线程的下载进度
-     */
-    private long mProgress;
-    /**
      * 文件的总大小 content-length
      */
     private long mCurrentLength;
@@ -55,15 +50,11 @@ class DownloadRunnable implements Runnable {
      */
     private DownloadCallback downloadCallback;
     /**
-     * 是否下载完成
-     */
-    private boolean mCompleted = false;
-    /**
      * 断点存储文件,文件名称为 .name.apk.1 信息格式为 start + "-" + end
      */
     private File breakPointFile;
 
-    public DownloadRunnable(String folder, String name, String url, long currentLength, int threadId, long start, long end, DownloadCallback downloadCallback) {
+    DownloadRunnable(String folder, String name, String url, long currentLength, int threadId, long start, long end, DownloadCallback downloadCallback) {
         this.folder = folder;
         this.name = name;
         this.url = url;
@@ -76,7 +67,7 @@ class DownloadRunnable implements Runnable {
 
     @Override
     public void run() {
-        mStatus = STATUS_DOWNLOADING;
+        mStatus = DownloadTask.DownloadStatus.STATUS_DOWNLOADING;
         InputStream inputStream = null;
         RandomAccessFile randomAccessFile = null;
         try {
@@ -91,7 +82,7 @@ class DownloadRunnable implements Runnable {
             byte[] bytes = new byte[10 * 1024];
             boolean isSuccess = true;
             while ((length = inputStream.read(bytes)) != -1) {
-                if (mStatus == STATUS_STOP) {
+                if (mStatus == DownloadTask.DownloadStatus.STATUS_STOP) {
                     isSuccess = false;
                     downloadCallback.onPause(file);
                     break;
@@ -100,11 +91,10 @@ class DownloadRunnable implements Runnable {
                 randomAccessFile.write(bytes, 0, length);
                 //保存下进度，做断点
                 start += length;
-                mProgress = mProgress + length;
                 //实时去更新下进度条，将每次写入的length传出去
                 downloadCallback.onProgress(length, mCurrentLength);
             }
-            if (mCompleted = isSuccess) {
+            if (isSuccess) {
                 deleteBreakPointFile();
                 downloadCallback.onSuccess(file);
             }
@@ -122,24 +112,11 @@ class DownloadRunnable implements Runnable {
      * 停止下载
      */
     public void stop() {
-        mStatus = STATUS_STOP;
-    }
-
-
-    /**
-     * 是否下载完成
-     *
-     * @return true false
-     */
-    public boolean isCompleted() {
-        return mCompleted;
+        mStatus = DownloadTask.DownloadStatus.STATUS_STOP;
     }
 
     /**
      * 记录当前下载的断点
-     *
-     * @param start
-     * @param end
      */
     private void recordProgress(long start, long end) {
         if (start < end) {
@@ -166,11 +143,8 @@ class DownloadRunnable implements Runnable {
         }
     }
 
-
     /**
      * 关闭流
-     *
-     * @param closeable
      */
     private void close(Closeable closeable) {
         try {

@@ -185,4 +185,16 @@
         android:layout_height="match_parent"
         android:text="删除所有下载"/>
 
+    <Button
+        android:id="@+id/btn_upload"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="上传"/>
+
+    <Button
+        android:id="@+id/btn_cancel_upload"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="取消上传"/>
+
 </LinearLayout>
